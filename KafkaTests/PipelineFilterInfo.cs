@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Reflection;
 
 namespace KafkaTests
 {
@@ -18,11 +19,18 @@ namespace KafkaTests
             this.factory = factory;
             this.InputType = inputType;
             this.OutputType = outputType;
+
+            this.InvokeMethod =
+                typeof(IPipelineFilter<,>)
+                    .MakeGenericType(inputType, outputType)
+                    .GetMethod(nameof(IPipelineFilter<int, int>.Invoke));
         }
 
         public IPipelineFilter Create()
         {
             return this.factory();
         }
+
+        public MethodInfo InvokeMethod { get; }
     }
 }

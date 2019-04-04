@@ -8,15 +8,13 @@ namespace KafkaTests
 {
     public class Pipeline<TInitialInput>
     {
-        private const string InvokeMethodName = nameof(GenericPipelineFilter<object, object>.Invoke);
-
         private static readonly MethodInfo ExecuteStepMethodInfo =
             typeof(Pipeline<TInitialInput>).GetMethod(nameof(ExecuteStep), BindingFlags.NonPublic | BindingFlags.Instance);
 
         private readonly List<PipelineFilterInfo> filters = new List<PipelineFilterInfo>();
 
-        private readonly Dictionary<PipelineFilterInfo, (MethodInfo, Delegate)> compilationCache =
-            new Dictionary<PipelineFilterInfo, (MethodInfo, Delegate)>();
+        private readonly Dictionary<PipelineFilterInfo, Delegate> compilationCache =
+            new Dictionary<PipelineFilterInfo, Delegate>();
 
         public void Pipe<TInput, TOutput>(PipelineHandler<TInput, TOutput> handler)
         {
@@ -39,46 +37,45 @@ namespace KafkaTests
             return this.ExecuteStep(this.filters.GetEnumerator(), input);
         }
 
-        private Task ExecuteStep(List<PipelineFilterInfo>.Enumerator infoEnum, object input)
+        private Task ExecuteStep(List<PipelineFilterInfo>.Enumerator info, object input)
         {
-            if (!infoEnum.MoveNext())
+            if (!info.MoveNext())
                 return Task.CompletedTask;
 
-            var (method, handler) = this.CompileStep(infoEnum);
+            var handler = this.GetCompiledHandler(info);
 
-            var filter = infoEnum.Current.Create();
+            var filter = info.Current.Create();
 
-            return (Task)method.Invoke(filter, new[] { input, handler });
+            return (Task)info.Current.InvokeMethod.Invoke(filter, new[] { input, handler });
         }
 
-        private (MethodInfo, Delegate) CompileStep(IEnumerator<PipelineFilterInfo> infoEnum)
+        private Delegate GetCompiledHandler(IEnumerator<PipelineFilterInfo> info)
         {
-            var info = infoEnum.Current;
-
-            if (this.compilationCache.TryGetValue(info, out var cache))
+            if (this.compilationCache.TryGetValue(info.Current, out var cache))
                 return cache;
 
-            var invokeStep = typeof(IPipelineFilter<,>)
-                .MakeGenericType(info.InputType, info.OutputType)
-                .GetMethod(InvokeMethodName);
+            var compiled = CompileHandler(info);
 
-            var outParam = Expression.Parameter(info.OutputType, "output");
+            this.compilationCache.Add(info.Current, compiled);
+
+            return compiled;
+        }
+
+        private Delegate CompileHandler(IEnumerator<PipelineFilterInfo> info)
+        {
+            var outParam = Expression.Parameter(info.Current.OutputType, "output");
 
             var lambda = Expression.Lambda(
                 Expression.Call(
                     Expression.Constant(this),
                     ExecuteStepMethodInfo,
-                    Expression.Constant(infoEnum),
+                    Expression.Constant(info),
                     Expression.Convert(
                         outParam,
                         typeof(object))),
                 outParam);
 
-            var compiled = lambda.Compile();
-
-            this.compilationCache.Add(info, (invokeStep, compiled));
-
-            return (invokeStep, compiled);
+            return lambda.Compile();
         }
     }
 }
