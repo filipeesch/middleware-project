@@ -6,55 +6,61 @@ using System.Threading.Tasks;
 
 namespace KafkaTests
 {
-    public class Pipeline<TInput>
+    public class Pipeline<TInitialInput>
     {
-        private const string InvokeMethodName = nameof(PipelineFilter<object, object>.Invoke);
+        private const string InvokeMethodName = nameof(GenericPipelineFilter<object, object>.Invoke);
 
         private static readonly MethodInfo ExecuteStepMethodInfo =
-            typeof(Pipeline<TInput>).GetMethod(nameof(ExecuteStep), BindingFlags.NonPublic | BindingFlags.Instance);
+            typeof(Pipeline<TInitialInput>).GetMethod(nameof(ExecuteStep), BindingFlags.NonPublic | BindingFlags.Instance);
 
-        private readonly List<IPipelineFilter> filters = new List<IPipelineFilter>();
+        private readonly List<PipelineFilterInfo> filters = new List<PipelineFilterInfo>();
 
-        private readonly Dictionary<IPipelineFilter, (MethodInfo, Delegate)> compilationCache = new Dictionary<IPipelineFilter, (MethodInfo, Delegate)>();
+        private readonly Dictionary<PipelineFilterInfo, (MethodInfo, Delegate)> compilationCache =
+            new Dictionary<PipelineFilterInfo, (MethodInfo, Delegate)>();
 
         public void Pipe<TInput, TOutput>(PipelineHandler<TInput, TOutput> handler)
         {
-            this.filters.Add(new PipelineFilter<TInput, TOutput>(handler));
+            this.filters.Add(new PipelineFilterInfo(
+                () => new GenericPipelineFilter<TInput, TOutput>(handler),
+                typeof(TInput),
+                typeof(TOutput)));
         }
 
-        public async Task Execute(TInput input)
+        public Task Execute(TInitialInput input)
         {
-            await this.ExecuteStep(this.filters.GetEnumerator(), input);
+            return this.ExecuteStep(this.filters.GetEnumerator(), input);
         }
 
-        private async Task ExecuteStep(List<IPipelineFilter>.Enumerator stepEnum, object input)
+        private Task ExecuteStep(List<PipelineFilterInfo>.Enumerator infoEnum, object input)
         {
-            if (!stepEnum.MoveNext())
-                return;
+            if (!infoEnum.MoveNext())
+                return Task.CompletedTask;
 
-            var (method, handler) = this.CompileStep(stepEnum);
+            var (method, handler) = this.CompileStep(infoEnum);
 
-            await (Task)method.Invoke(stepEnum.Current, new[] { input, handler });
+            var filter = infoEnum.Current.Create();
+
+            return (Task)method.Invoke(filter, new[] { input, handler });
         }
 
-        private (MethodInfo, Delegate) CompileStep(IEnumerator<IPipelineFilter> stepEnum)
+        private (MethodInfo, Delegate) CompileStep(IEnumerator<PipelineFilterInfo> infoEnum)
         {
-            var step = stepEnum.Current;
+            var info = infoEnum.Current;
 
-            if (this.compilationCache.TryGetValue(step, out var cache))
+            if (this.compilationCache.TryGetValue(info, out var cache))
                 return cache;
 
-            var invokeStep = typeof(PipelineFilter<,>)
-                .MakeGenericType(step.InputType, step.OutputType)
+            var invokeStep = typeof(GenericPipelineFilter<,>)
+                .MakeGenericType(info.InputType, info.OutputType)
                 .GetMethod(InvokeMethodName);
 
-            var outParam = Expression.Parameter(step.OutputType, "output");
+            var outParam = Expression.Parameter(info.OutputType, "output");
 
             var lambda = Expression.Lambda(
                 Expression.Call(
                     Expression.Constant(this),
                     ExecuteStepMethodInfo,
-                    Expression.Constant(stepEnum),
+                    Expression.Constant(infoEnum),
                     Expression.Convert(
                         outParam,
                         typeof(object))),
@@ -62,7 +68,7 @@ namespace KafkaTests
 
             var compiled = lambda.Compile();
 
-            this.compilationCache.Add(step, (invokeStep, compiled));
+            this.compilationCache.Add(info, (invokeStep, compiled));
 
             return (invokeStep, compiled);
         }
