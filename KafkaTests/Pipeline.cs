@@ -26,6 +26,14 @@ namespace KafkaTests
                 typeof(TOutput)));
         }
 
+        public void Pipe<TInput, TOutput>(Func<IPipelineFilter<TInput, TOutput>> factory)
+        {
+            this.filters.Add(new PipelineFilterInfo(
+                factory,
+                typeof(TInput),
+                typeof(TOutput)));
+        }
+
         public Task Execute(TInitialInput input)
         {
             return this.ExecuteStep(this.filters.GetEnumerator(), input);
@@ -50,7 +58,7 @@ namespace KafkaTests
             if (this.compilationCache.TryGetValue(info, out var cache))
                 return cache;
 
-            var invokeStep = typeof(GenericPipelineFilter<,>)
+            var invokeStep = typeof(IPipelineFilter<,>)
                 .MakeGenericType(info.InputType, info.OutputType)
                 .GetMethod(InvokeMethodName);
 

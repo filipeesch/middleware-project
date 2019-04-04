@@ -1,4 +1,6 @@
-﻿namespace KafkaTests
+﻿using System;
+
+namespace KafkaTests
 {
     public class PipelineBuilderNode<TMainInput, TInput>
     {
@@ -12,6 +14,13 @@
         public PipelineBuilderNode<TMainInput, TOutput> Pipe<TOutput>(PipelineHandler<TInput, TOutput> handler)
         {
             this.pipeline.Pipe(handler);
+
+            return new PipelineBuilderNode<TMainInput, TOutput>(this.pipeline);
+        }
+
+        public PipelineBuilderNode<TMainInput, TOutput> Pipe<TOutput>(Func<IPipelineFilter<TInput, TOutput>> factory)
+        {
+            this.pipeline.Pipe(factory);
 
             return new PipelineBuilderNode<TMainInput, TOutput>(this.pipeline);
         }

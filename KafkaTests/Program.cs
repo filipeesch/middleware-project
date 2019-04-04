@@ -11,8 +11,8 @@
             var builder = new PipelineBuilder<int>();
 
             var pipeline = builder
-                .Pipe<int>((input, next) => next(input * 2))
                 .Pipe<int>((input, next) => input % 2 != 0 ? Task.CompletedTask : next(input))
+                .Pipe(() => new MultiplyValueFilter(5))
                 .Pipe<int>(async (input, next) =>
                 {
                     try
@@ -29,7 +29,6 @@
                 .Build();
 
             await pipeline.Execute(10);
-
 
             string command;
 

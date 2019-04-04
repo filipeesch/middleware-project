@@ -10,7 +10,10 @@ namespace KafkaTests
 
         public Type OutputType { get; }
 
-        public PipelineFilterInfo(Func<IPipelineFilter> factory, Type inputType, Type outputType)
+        public PipelineFilterInfo(
+            Func<IPipelineFilter> factory,
+            Type inputType,
+            Type outputType)
         {
             this.factory = factory;
             this.InputType = inputType;
