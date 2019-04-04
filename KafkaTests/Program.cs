@@ -8,27 +8,30 @@
     {
         static async Task Main(string[] args)
         {
-            var builder = new PipelineBuilder<int>();
+            var builder = new PipelineBuilder<byte[]>();
 
             var pipeline = builder
-                .Pipe<int>((input, next) => input % 2 != 0 ? Task.CompletedTask : next(input))
-                .Pipe(() => new MultiplyValueFilter(5))
-                .Pipe<int>(async (input, next) =>
+                .Pipe<byte[]>(async (input, next) =>
                 {
                     try
                     {
-                        await next(input * 5);
+                        await next(input);
                     }
                     catch (Exception e)
                     {
+                        //Log the exception
                         Console.WriteLine(e);
                     }
                 })
-                .Pipe<string>((input, next) => next(Convert.ToString(input)))
+                .Pipe(() => new LogElapsedExecutionTimeFilter<byte[]>())
+                .Pipe(() => new ByteArrayToStreamFilter())
+                .Pipe(() => new GzipCompressFilter())
                 .Pipe<string>(async (input, next) => Console.WriteLine(input))
                 .Build();
 
-            await pipeline.Execute(10);
+            var data = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
+
+            await pipeline.Execute(data);
 
             string command;
 
