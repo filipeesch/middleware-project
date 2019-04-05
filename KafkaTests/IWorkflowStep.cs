@@ -3,11 +3,11 @@ using System.Threading.Tasks;
 
 namespace KafkaTests
 {
-    public interface IPipelineFilter
+    public interface IWorkflowStep
     {
     }
 
-    public interface IPipelineFilter<in TInput, out TOutput> : IPipelineFilter
+    public interface IWorkflowStep<in TInput, out TOutput> : IWorkflowStep
     {
         Task Invoke(TInput input, Func<TOutput, Task> next);
     }

@@ -6,51 +6,49 @@ using System.Threading.Tasks;
 
 namespace KafkaTests
 {
-    public class Pipeline<TInitialInput>
+    public class Workflow<TInitialInput>
     {
         private static readonly MethodInfo ExecuteStepMethodInfo =
-            typeof(Pipeline<TInitialInput>).GetMethod(nameof(ExecuteStep), BindingFlags.NonPublic | BindingFlags.Instance);
+            typeof(Workflow<TInitialInput>).GetMethod(nameof(ExecuteStep), BindingFlags.NonPublic | BindingFlags.Instance);
 
-        private readonly List<PipelineFilterInfo> filters;
+        private readonly List<WorkflowStepInfo> steps;
 
-        private readonly Dictionary<PipelineFilterInfo, Delegate> compilationCache =
-            new Dictionary<PipelineFilterInfo, Delegate>();
+        private readonly Dictionary<WorkflowStepInfo, Delegate> compilationCache =
+            new Dictionary<WorkflowStepInfo, Delegate>();
 
-        public Pipeline(List<PipelineFilterInfo> filters)
+        public Workflow(List<WorkflowStepInfo> filters)
         {
-            this.filters = filters;
+            this.steps = filters;
         }
 
         public Task Execute(TInitialInput input)
         {
-            return this.ExecuteStep(this.filters.GetEnumerator(), input);
+            return this.ExecuteStep(this.steps.GetEnumerator(), input);
         }
 
-        private Task ExecuteStep(List<PipelineFilterInfo>.Enumerator info, object input)
+        private Task ExecuteStep(List<WorkflowStepInfo>.Enumerator info, object input)
         {
             if (!info.MoveNext())
                 return Task.CompletedTask;
 
             var handler = this.GetCompiledHandler(info);
 
-            var filter = info.Current.Create();
-
-            return (Task)info.Current.InvokeMethod.Invoke(filter, new[] { input, handler });
+            return info.Current.InvokeStep(input, handler);
         }
 
-        private Delegate GetCompiledHandler(IEnumerator<PipelineFilterInfo> info)
+        private Delegate GetCompiledHandler(IEnumerator<WorkflowStepInfo> info)
         {
             if (this.compilationCache.TryGetValue(info.Current, out var cache))
                 return cache;
 
-            var compiled = CompileHandler(info);
+            var compiled = this.CompileHandler(info);
 
             this.compilationCache.Add(info.Current, compiled);
 
             return compiled;
         }
 
-        private Delegate CompileHandler(IEnumerator<PipelineFilterInfo> info)
+        private Delegate CompileHandler(IEnumerator<WorkflowStepInfo> info)
         {
             var outParam = Expression.Parameter(info.Current.OutputType, "output");
 

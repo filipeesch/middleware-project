@@ -1,16 +1,16 @@
-﻿using System;
-using System.Diagnostics;
-using System.IO;
-using System.IO.Compression;
-using System.Threading.Tasks;
-
-namespace KafkaTests
+﻿namespace KafkaTests
 {
-    public class MultiplyValueFilter : IPipelineFilter<int, int>
+    using System;
+    using System.Diagnostics;
+    using System.IO;
+    using System.IO.Compression;
+    using System.Threading.Tasks;
+
+    public class MultiplyValueStep : IWorkflowStep<int, int>
     {
         private readonly int multiplyBy;
 
-        public MultiplyValueFilter(int multiplyBy)
+        public MultiplyValueStep(int multiplyBy)
         {
             this.multiplyBy = multiplyBy;
         }
@@ -21,7 +21,7 @@ namespace KafkaTests
         }
     }
 
-    public class ByteArrayToStreamFilter : IPipelineFilter<byte[], Stream>
+    public class ByteArrayToStreamStep : IWorkflowStep<byte[], Stream>
     {
         public async Task Invoke(byte[] input, Func<Stream, Task> next)
         {
@@ -32,7 +32,7 @@ namespace KafkaTests
         }
     }
 
-    public class GzipCompressFilter : IPipelineFilter<Stream, Stream>
+    public class GzipCompressStep : IWorkflowStep<Stream, Stream>
     {
         public async Task Invoke(Stream input, Func<Stream, Task> next)
         {
@@ -43,7 +43,7 @@ namespace KafkaTests
         }
     }
 
-    public class LogElapsedExecutionTimeFilter<T> : IPipelineFilter<T, T>
+    public class LogElapsedExecutionTimeStep<T> : IWorkflowStep<T, T>
     {
         public async Task Invoke(T input, Func<T, Task> next)
         {

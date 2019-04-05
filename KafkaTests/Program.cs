@@ -8,10 +8,10 @@
     {
         static async Task Main(string[] args)
         {
-            var builder = new PipelineBuilder<int>();
+            var builder = new WorkflowBuilder<int>();
 
-            var pipeline = builder
-                .Pipe<int>(async (input, next) =>
+            var workflow = builder
+                .Use<int>(async (input, next) =>
                 {
                     try
                     {
@@ -23,12 +23,12 @@
                         Console.WriteLine(e);
                     }
                 })
-                .Pipe<int>(() => new LogElapsedExecutionTimeFilter<int>())
-                .Pipe<int>((input, next) => next(input * 2))
-                .Pipe<string>(async (input, next) => Console.WriteLine(input))
+                .Use<int>(() => new LogElapsedExecutionTimeStep<int>())
+                .Use<int>((input, next) => next(input * 2))
+                .Use<string>(async (input, next) => Console.WriteLine(input))
                 .Build();
 
-            await pipeline.Execute(10);
+            await workflow.Execute(10);
 
             string command;
 
@@ -39,7 +39,7 @@
 
                 var sw = Stopwatch.StartNew();
 
-                await pipeline.Execute(number);
+                await workflow.Execute(number);
 
                 sw.Stop();
 
