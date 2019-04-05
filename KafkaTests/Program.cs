@@ -8,10 +8,10 @@
     {
         static async Task Main(string[] args)
         {
-            var builder = new PipelineBuilder<byte[]>();
+            var builder = new PipelineBuilder<int>();
 
             var pipeline = builder
-                .Pipe<byte[]>(async (input, next) =>
+                .Pipe<int>(async (input, next) =>
                 {
                     try
                     {
@@ -23,15 +23,12 @@
                         Console.WriteLine(e);
                     }
                 })
-                .Pipe(() => new LogElapsedExecutionTimeFilter<byte[]>())
-                .Pipe(() => new ByteArrayToStreamFilter())
-                .Pipe(() => new GzipCompressFilter())
+                .Pipe<int>(() => new LogElapsedExecutionTimeFilter<int>())
+                .Pipe<int>((input, next) => next(input * 2))
                 .Pipe<string>(async (input, next) => Console.WriteLine(input))
                 .Build();
 
-            var data = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8 };
-
-            await pipeline.Execute(data);
+            await pipeline.Execute(10);
 
             string command;
 
@@ -46,7 +43,7 @@
 
                 sw.Stop();
 
-                Console.WriteLine("elapsed: {0}", sw.ElapsedMilliseconds);
+                Console.WriteLine("total elapsed: {0}", sw.ElapsedMilliseconds);
             }
         }
     }

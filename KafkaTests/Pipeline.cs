@@ -11,25 +11,14 @@ namespace KafkaTests
         private static readonly MethodInfo ExecuteStepMethodInfo =
             typeof(Pipeline<TInitialInput>).GetMethod(nameof(ExecuteStep), BindingFlags.NonPublic | BindingFlags.Instance);
 
-        private readonly List<PipelineFilterInfo> filters = new List<PipelineFilterInfo>();
+        private readonly List<PipelineFilterInfo> filters;
 
         private readonly Dictionary<PipelineFilterInfo, Delegate> compilationCache =
             new Dictionary<PipelineFilterInfo, Delegate>();
 
-        public void Pipe<TInput, TOutput>(PipelineHandler<TInput, TOutput> handler)
+        public Pipeline(List<PipelineFilterInfo> filters)
         {
-            this.filters.Add(new PipelineFilterInfo(
-                () => new GenericPipelineFilter<TInput, TOutput>(handler),
-                typeof(TInput),
-                typeof(TOutput)));
-        }
-
-        public void Pipe<TInput, TOutput>(Func<IPipelineFilter<TInput, TOutput>> factory)
-        {
-            this.filters.Add(new PipelineFilterInfo(
-                factory,
-                typeof(TInput),
-                typeof(TOutput)));
+            this.filters = filters;
         }
 
         public Task Execute(TInitialInput input)

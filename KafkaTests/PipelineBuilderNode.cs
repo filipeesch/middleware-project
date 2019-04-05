@@ -2,32 +2,40 @@
 
 namespace KafkaTests
 {
+    using System.Collections.Generic;
+
     public class PipelineBuilderNode<TMainInput, TInput>
     {
-        private readonly Pipeline<TMainInput> pipeline;
+        private readonly List<PipelineFilterInfo> filters;
 
-        public PipelineBuilderNode(Pipeline<TMainInput> pipeline)
+        public PipelineBuilderNode(List<PipelineFilterInfo> filters)
         {
-            this.pipeline = pipeline;
+            this.filters = filters;
         }
 
         public PipelineBuilderNode<TMainInput, TOutput> Pipe<TOutput>(PipelineHandler<TInput, TOutput> handler)
         {
-            this.pipeline.Pipe(handler);
+            this.filters.Add(new PipelineFilterInfo(
+                () => new GenericPipelineFilter<TInput, TOutput>(handler),
+                typeof(TInput),
+                typeof(TOutput)));
 
-            return new PipelineBuilderNode<TMainInput, TOutput>(this.pipeline);
+            return new PipelineBuilderNode<TMainInput, TOutput>(this.filters);
         }
 
         public PipelineBuilderNode<TMainInput, TOutput> Pipe<TOutput>(Func<IPipelineFilter<TInput, TOutput>> factory)
         {
-            this.pipeline.Pipe(factory);
+            this.filters.Add(new PipelineFilterInfo(
+                factory,
+                typeof(TInput),
+                typeof(TOutput)));
 
-            return new PipelineBuilderNode<TMainInput, TOutput>(this.pipeline);
+            return new PipelineBuilderNode<TMainInput, TOutput>(this.filters);
         }
 
         public Pipeline<TMainInput> Build()
         {
-            return this.pipeline;
+            return new Pipeline<TMainInput>(this.filters);
         }
     }
 }
