@@ -23,9 +23,9 @@
                         Console.WriteLine(e);
                     }
                 })
-                .Use<int>(() => new LogElapsedExecutionTimeStep<int>())
+                .Use(() => new LogElapsedExecutionTimeStep<int>())
                 .Use<int>((input, next) => next(input * 2))
-                .Use<string>(async (input, next) => Console.WriteLine(input))
+                .Use<int>((input, next) => next(input * 2))
                 .Build();
 
             await workflow.Execute(10);
@@ -39,10 +39,11 @@
 
                 var sw = Stopwatch.StartNew();
 
-                await workflow.Execute(number);
+                var result = await workflow.Execute(number);
 
                 sw.Stop();
 
+                Console.WriteLine("Result: {0}", result);
                 Console.WriteLine("total elapsed: {0}", sw.ElapsedMilliseconds);
             }
         }

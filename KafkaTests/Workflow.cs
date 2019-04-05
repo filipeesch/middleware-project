@@ -1,51 +1,60 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq.Expressions;
-using System.Reflection;
-using System.Threading.Tasks;
-
-namespace KafkaTests
+﻿namespace KafkaTests
 {
-    public class Workflow<TInitialInput>
+    using System;
+    using System.Collections.Generic;
+    using System.Linq.Expressions;
+    using System.Reflection;
+    using System.Threading.Tasks;
+
+    public class Workflow<TInput, TOutput>
     {
         private static readonly MethodInfo ExecuteStepMethodInfo =
-            typeof(Workflow<TInitialInput>).GetMethod(nameof(ExecuteStep), BindingFlags.NonPublic | BindingFlags.Instance);
+            typeof(Workflow<TInput, TOutput>).GetMethod(nameof(ExecuteStep), BindingFlags.NonPublic | BindingFlags.Instance);
 
-        private readonly List<WorkflowStepInfo> steps;
+        private readonly List<WorkflowStepInfo> infos;
 
         private readonly Dictionary<WorkflowStepInfo, Delegate> compilationCache =
             new Dictionary<WorkflowStepInfo, Delegate>();
 
-        public Workflow(List<WorkflowStepInfo> filters)
+        private object output;
+
+        public Workflow(List<WorkflowStepInfo> steps)
         {
-            this.steps = filters;
+            this.infos = steps;
+
+            this.CompileHandlers();
         }
 
-        public Task Execute(TInitialInput input)
+        private void CompileHandlers()
         {
-            return this.ExecuteStep(this.steps.GetEnumerator(), input);
+            var info = this.infos.GetEnumerator();
+
+            while (info.MoveNext())
+            {
+                this.compilationCache.Add(info.Current, this.CompileHandler(info));
+            }
+        }
+
+        public async Task<TOutput> Execute(TInput input)
+        {
+            await this.ExecuteStep(this.infos.GetEnumerator(), input);
+
+            return this.output == null ?
+                default :
+                (TOutput)this.output;
         }
 
         private Task ExecuteStep(List<WorkflowStepInfo>.Enumerator info, object input)
         {
             if (!info.MoveNext())
+            {
+                this.output = input;
                 return Task.CompletedTask;
+            }
 
-            var handler = this.GetCompiledHandler(info);
+            var handler = this.compilationCache[info.Current];
 
             return info.Current.InvokeStep(input, handler);
-        }
-
-        private Delegate GetCompiledHandler(IEnumerator<WorkflowStepInfo> info)
-        {
-            if (this.compilationCache.TryGetValue(info.Current, out var cache))
-                return cache;
-
-            var compiled = this.CompileHandler(info);
-
-            this.compilationCache.Add(info.Current, compiled);
-
-            return compiled;
         }
 
         private Delegate CompileHandler(IEnumerator<WorkflowStepInfo> info)

@@ -3,21 +3,21 @@
     using System;
     using System.Collections.Generic;
 
-    public class WorkflowBuilder<TMainInput>
+    public class WorkflowBuilder<TWorkflowInput>
     {
-        public WorkflowBuilderNode<TMainInput, TOutput> Use<TOutput>(WorkflowHandler<TMainInput, TOutput> handler)
+        public WorkflowBuilderNode<TWorkflowInput, TOutput> Use<TOutput>(WorkflowHandler<TWorkflowInput, TOutput> handler)
         {
             var steps = new List<WorkflowStepInfo>();
 
-            var node = new WorkflowBuilderNode<TMainInput, TMainInput>(steps);
+            var node = new WorkflowBuilderNode<TWorkflowInput, TWorkflowInput>(steps);
             return node.Use(handler);
         }
 
-        public WorkflowBuilderNode<TMainInput, TOutput> Use<TOutput>(Func<IWorkflowStep<TMainInput, TOutput>> factory)
+        public WorkflowBuilderNode<TWorkflowInput, TOutput> Use<TOutput>(Func<IWorkflowStep<TWorkflowInput, TOutput>> factory)
         {
             var steps = new List<WorkflowStepInfo>();
 
-            var node = new WorkflowBuilderNode<TMainInput, TMainInput>(steps);
+            var node = new WorkflowBuilderNode<TWorkflowInput, TWorkflowInput>(steps);
             return node.Use(factory);
         }
     }

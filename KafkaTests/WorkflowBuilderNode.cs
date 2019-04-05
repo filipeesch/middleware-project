@@ -3,7 +3,7 @@
     using System;
     using System.Collections.Generic;
 
-    public class WorkflowBuilderNode<TMainInput, TInput>
+    public class WorkflowBuilderNode<TWorkflowInput, TStepInput>
     {
         private readonly List<WorkflowStepInfo> steps;
 
@@ -12,29 +12,29 @@
             this.steps = filters;
         }
 
-        public WorkflowBuilderNode<TMainInput, TOutput> Use<TOutput>(WorkflowHandler<TInput, TOutput> handler)
+        public WorkflowBuilderNode<TWorkflowInput, TOutput> Use<TOutput>(WorkflowHandler<TStepInput, TOutput> handler)
         {
             this.steps.Add(new WorkflowStepInfo(
-                () => new HandlerWorkflowStep<TInput, TOutput>(handler),
-                typeof(TInput),
+                () => new HandlerWorkflowStep<TStepInput, TOutput>(handler),
+                typeof(TStepInput),
                 typeof(TOutput)));
 
-            return new WorkflowBuilderNode<TMainInput, TOutput>(this.steps);
+            return new WorkflowBuilderNode<TWorkflowInput, TOutput>(this.steps);
         }
 
-        public WorkflowBuilderNode<TMainInput, TOutput> Use<TOutput>(Func<IWorkflowStep<TInput, TOutput>> factory)
+        public WorkflowBuilderNode<TWorkflowInput, TOutput> Use<TOutput>(Func<IWorkflowStep<TStepInput, TOutput>> factory)
         {
             this.steps.Add(new WorkflowStepInfo(
                 factory,
-                typeof(TInput),
+                typeof(TStepInput),
                 typeof(TOutput)));
 
-            return new WorkflowBuilderNode<TMainInput, TOutput>(this.steps);
+            return new WorkflowBuilderNode<TWorkflowInput, TOutput>(this.steps);
         }
 
-        public Workflow<TMainInput> Build()
+        public Workflow<TWorkflowInput, TStepInput> Build()
         {
-            return new Workflow<TMainInput>(this.steps);
+            return new Workflow<TWorkflowInput, TStepInput>(this.steps);
         }
     }
 }
