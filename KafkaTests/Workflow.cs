@@ -6,17 +6,16 @@
     using System.Reflection;
     using System.Threading.Tasks;
 
-    public class Workflow<TInput, TOutput>
+    public class Workflow<TInput, TContext> where TContext : IWorkflowContext, new()
     {
         private static readonly MethodInfo ExecuteStepMethodInfo =
-            typeof(Workflow<TInput, TOutput>).GetMethod(nameof(ExecuteStep), BindingFlags.NonPublic | BindingFlags.Instance);
+            typeof(Workflow<TInput, TContext>).GetMethod(nameof(ExecuteStep), BindingFlags.NonPublic | BindingFlags.Instance);
 
         private readonly List<WorkflowStepInfo> infos;
+        private readonly TContext context = new TContext();
 
         private readonly Dictionary<WorkflowStepInfo, Delegate> compilationCache =
             new Dictionary<WorkflowStepInfo, Delegate>();
-
-        private object output;
 
         public Workflow(List<WorkflowStepInfo> steps)
         {
@@ -35,26 +34,21 @@
             }
         }
 
-        public async Task<TOutput> Execute(TInput input)
+        public async Task<TContext> Execute(TInput input)
         {
             await this.ExecuteStep(this.infos.GetEnumerator(), input);
 
-            return this.output == null ?
-                default :
-                (TOutput)this.output;
+            return this.context;
         }
 
         private Task ExecuteStep(List<WorkflowStepInfo>.Enumerator info, object input)
         {
             if (!info.MoveNext())
-            {
-                this.output = input;
                 return Task.CompletedTask;
-            }
 
             var handler = this.compilationCache[info.Current];
 
-            return info.Current.InvokeStep(input, handler);
+            return info.Current.InvokeStep(this.context, input, handler);
         }
 
         private Delegate CompileHandler(IEnumerator<WorkflowStepInfo> info)

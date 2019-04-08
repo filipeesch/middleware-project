@@ -16,6 +16,7 @@ namespace KafkaTests
 
         public WorkflowStepInfo(
             Func<IWorkflowStep> factory,
+            Type contextType,
             Type inputType,
             Type outputType)
         {
@@ -24,16 +25,16 @@ namespace KafkaTests
             this.OutputType = outputType;
 
             this.invokeMethod =
-                typeof(IWorkflowStep<,>)
-                    .MakeGenericType(inputType, outputType)
-                    .GetMethod(nameof(IWorkflowStep<int, int>.Invoke));
+                typeof(IWorkflowStep<,,>)
+                    .MakeGenericType(contextType, inputType, outputType)
+                    .GetMethod(nameof(IWorkflowStep<int, int, int>.Invoke));
         }
 
-        public Task InvokeStep(object input, object handler)
+        public async Task InvokeStep(object context, object input, object handler)
         {
             var step = this.factory();
 
-            return (Task)this.invokeMethod.Invoke(step, new[] { input, handler });
+            await (Task)this.invokeMethod.Invoke(step, new[] { context, input, handler });
         }
     }
 }

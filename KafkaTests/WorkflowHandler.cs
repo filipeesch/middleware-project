@@ -3,5 +3,5 @@ using System.Threading.Tasks;
 
 namespace KafkaTests
 {
-    public delegate Task WorkflowHandler<in TInput, out TOutput>(TInput input, Func<TOutput, Task> next);
+    public delegate Task WorkflowHandler<in TContext, in TInput, out TOutput>(TContext context, TInput input, Func<TOutput, Task> next);
 }

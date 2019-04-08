@@ -8,10 +8,10 @@
     {
         static async Task Main(string[] args)
         {
-            var builder = new WorkflowBuilder<int>();
+            var builder = new WorkflowBuilder<int, DefaultWorkflowContext<int>>();
 
             var workflow = builder
-                .Use<int>(async (input, next) =>
+                .Use<int>(async (context, input, next) =>
                 {
                     try
                     {
@@ -24,8 +24,9 @@
                     }
                 })
                 .Use(() => new LogElapsedExecutionTimeStep<int>())
-                .Use<int>((input, next) => next(input * 2))
-                .Use<int>((input, next) => next(input * 2))
+                .Use<int>((context, input, next) => next(input * 2))
+                .Use<int>((context, input, next) => next(input * 2))
+                .Use<int>(async (context, input, next) => context.Output = input)
                 .Build();
 
             await workflow.Execute(10);
@@ -43,7 +44,7 @@
 
                 sw.Stop();
 
-                Console.WriteLine("Result: {0}", result);
+                Console.WriteLine("Result: {0}", result.Output);
                 Console.WriteLine("total elapsed: {0}", sw.ElapsedMilliseconds);
             }
         }

@@ -3,7 +3,7 @@
     using System;
     using System.Collections.Generic;
 
-    public class WorkflowBuilderNode<TWorkflowInput, TStepInput>
+    public class WorkflowBuilderNode<TWorkflowInput, TStepInput, TContext> where TContext : IWorkflowContext, new()
     {
         private readonly List<WorkflowStepInfo> steps;
 
@@ -12,29 +12,31 @@
             this.steps = filters;
         }
 
-        public WorkflowBuilderNode<TWorkflowInput, TOutput> Use<TOutput>(WorkflowHandler<TStepInput, TOutput> handler)
+        public WorkflowBuilderNode<TWorkflowInput, TOutput, TContext> Use<TOutput>(WorkflowHandler<TContext, TStepInput, TOutput> handler)
         {
             this.steps.Add(new WorkflowStepInfo(
-                () => new HandlerWorkflowStep<TStepInput, TOutput>(handler),
+                () => new HandlerWorkflowStep<TContext, TStepInput, TOutput>(handler),
+                typeof(TContext),
                 typeof(TStepInput),
                 typeof(TOutput)));
 
-            return new WorkflowBuilderNode<TWorkflowInput, TOutput>(this.steps);
+            return new WorkflowBuilderNode<TWorkflowInput, TOutput, TContext>(this.steps);
         }
 
-        public WorkflowBuilderNode<TWorkflowInput, TOutput> Use<TOutput>(Func<IWorkflowStep<TStepInput, TOutput>> factory)
+        public WorkflowBuilderNode<TWorkflowInput, TOutput, TContext> Use<TOutput>(Func<IWorkflowStep<TContext, TStepInput, TOutput>> factory)
         {
             this.steps.Add(new WorkflowStepInfo(
                 factory,
+                typeof(TContext),
                 typeof(TStepInput),
                 typeof(TOutput)));
 
-            return new WorkflowBuilderNode<TWorkflowInput, TOutput>(this.steps);
+            return new WorkflowBuilderNode<TWorkflowInput, TOutput, TContext>(this.steps);
         }
 
-        public Workflow<TWorkflowInput, TStepInput> Build()
+        public Workflow<TWorkflowInput, TContext> Build()
         {
-            return new Workflow<TWorkflowInput, TStepInput>(this.steps);
+            return new Workflow<TWorkflowInput, TContext>(this.steps);
         }
     }
 }
