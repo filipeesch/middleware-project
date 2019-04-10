@@ -9,27 +9,26 @@
         static async Task Main(string[] args)
         {
             var builder = new WorkflowBuilder<int, DefaultWorkflowContext<int>>();
+            var bufferStep = new WorkflowBufferStep<int>(10);
+            var bufferStep2 = new WorkflowBufferStep<int>(10);
 
             var workflow = builder
+                .Use(() => bufferStep)
                 .Use<int>(async (context, input, next) =>
                 {
-                    try
-                    {
-                        await next(input);
-                    }
-                    catch (Exception e)
-                    {
-                        //Log the exception
-                        Console.WriteLine(e);
-                    }
+                    await Task.Delay(200);
+                    Console.WriteLine("Workflow Middle: {0}", input);
+                    await next(input);
                 })
-                .Use(() => new LogElapsedExecutionTimeStep<int>())
-                .Use<int>((context, input, next) => next(input * 2))
-                .Use<int>((context, input, next) => next(input * 2))
-                .Use<int>(async (context, input, next) => context.Output = input)
+                .Use(() => bufferStep2)
+                .Use<int>(async (context, input, next) =>
+                {
+                    await Task.Delay(1000);
+                    Console.WriteLine("Workflow Middle 1: {0}", input);
+                    await next(input);
+                })
+                .Use<int>(async (context, input, next) => Console.WriteLine("Workflow Ended: {0}", input))
                 .Build();
-
-            await workflow.Execute(10);
 
             string command;
 
@@ -38,14 +37,12 @@
                 if (!int.TryParse(command, out var number))
                     continue;
 
-                var sw = Stopwatch.StartNew();
 
-                var result = await workflow.Execute(number);
-
-                sw.Stop();
-
-                Console.WriteLine("Result: {0}", result.Output);
-                Console.WriteLine("total elapsed: {0}", sw.ElapsedMilliseconds);
+                for (int i = 0; i < number; i++)
+                {
+                    await workflow.Execute(i);
+                    Console.WriteLine("Queued: {0}", i);
+                }
             }
         }
     }
